@@ -1,2 +1,3 @@
-# strom
-Static site generator
+# Åska
+
+Åska (storm) is a static site generator
