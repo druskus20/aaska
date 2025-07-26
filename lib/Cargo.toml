@@ -1,0 +1,10 @@
+[package]
+name = "aaska-lib"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+markdown = "1.0.0"
+maud = "0.27.0"
+color-eyre = "0.6.5"
+tracing = "0.1.41"
