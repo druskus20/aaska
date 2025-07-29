@@ -20,7 +20,12 @@ struct RawArgs {
 #[derive(Subcommand, Clone, Debug)]
 pub enum RawCommand {
     Sample,
-    Generate,
+    Generate {
+        #[arg(short, long)]
+        input: Option<PathBuf>,
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug)]
@@ -41,7 +46,9 @@ impl ParsedArgs {
 
         let command = match args.command {
             RawCommand::Sample => Command::Sample,
-            RawCommand::Generate => Command::Generate,
+            RawCommand::Generate { input, output } => {
+                Command::Generate(GenerateArgs { input, output })
+            }
         };
 
         ParsedArgs {
@@ -62,20 +69,11 @@ impl ParsedArgs {
 #[derive(Debug)]
 pub enum Command {
     Sample,
-    Generate,
+    Generate(GenerateArgs),
 }
 
 #[derive(Debug)]
-pub struct RecordArgs {
-    pub output: PathBuf,
-    pub append: bool,
-    pub mock_writer: bool,
-    pub audio_settings_path: PathBuf,
-}
-
-#[derive(Debug)]
-pub struct IntroduceDelayArgs {
-    pub input: PathBuf,
-    pub output: PathBuf,
-    pub audio_settings_path: PathBuf,
+pub struct GenerateArgs {
+    pub input: Option<PathBuf>,
+    pub output: Option<PathBuf>,
 }

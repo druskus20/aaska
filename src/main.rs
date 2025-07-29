@@ -79,16 +79,16 @@ fn main() {
     let _guard = argus::tracing::setup_tracing(&args.tracing_options);
 
     match args.command {
-        cli::Command::Generate => generate(),
+        cli::Command::Generate(args) => generate(args),
         cli::Command::Sample => generate_sample_source(),
     }
     .expect("Failed to execute command");
 }
 
-fn generate() -> Result<()> {
+fn generate(args: cli::GenerateArgs) -> Result<()> {
     let config = Config {
-        source_dir: PathBuf::from("/tmp/source"),
-        output_dir: PathBuf::from("/tmp/output"),
+        source_dir: args.input.unwrap_or_else(|| PathBuf::from("/tmp/input")),
+        output_dir: args.output.unwrap_or_else(|| PathBuf::from("/tmp/output")),
     };
 
     let meta = SiteMetadata { author: "druskus" };
