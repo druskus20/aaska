@@ -5,6 +5,7 @@ mod prelude {
     pub use color_eyre::eyre::{Result, WrapErr};
     pub use tracing::{debug, error, info, instrument, span, trace, warn};
 }
+use aaska::markdown::{self, Constructs, ParseOptions};
 use prelude::*;
 
 mod cli;
@@ -13,6 +14,7 @@ mod index;
 struct Config {
     pub source_dir: PathBuf,
     pub output_dir: PathBuf,
+    pub parsing_options: ParseOptions,
 }
 
 pub struct SiteMetadata {
@@ -89,6 +91,13 @@ fn generate(args: cli::GenerateArgs) -> Result<()> {
     let config = Config {
         source_dir: args.input.unwrap_or_else(|| PathBuf::from("/tmp/input")),
         output_dir: args.output.unwrap_or_else(|| PathBuf::from("/tmp/output")),
+        parsing_options: ParseOptions {
+            constructs: Constructs {
+                frontmatter: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
     };
 
     let meta = SiteMetadata { author: "druskus" };

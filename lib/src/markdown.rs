@@ -1,5 +1,7 @@
 use crate::internal_prelude::*;
 
+pub use markdown::*;
+
 pub fn generate_html(input_mds: Vec<&str>) -> Result<Vec<String>> {
     let mut res = Vec::with_capacity(input_mds.len());
     for input_md in &input_mds {

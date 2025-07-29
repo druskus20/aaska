@@ -1,4 +1,4 @@
-use std::{path::PathBuf, process::exit};
+use std::path::PathBuf;
 
 use argus::tracing::TracingOptions;
 use clap::{Parser, Subcommand};
