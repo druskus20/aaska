@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use aaska_lib::fs::ContentFile;
 use color_eyre::eyre::Result;
 
 fn main() {
@@ -8,15 +9,15 @@ fn main() {
 
     let files = files
         .iter()
-        .filter(|f| f.extension().is_some_and(|ext| ext == "md"))
-        .collect::<Vec<&PathBuf>>();
+        .filter(|f| f.path.extension().is_some_and(|ext| ext == "md"))
+        .collect::<Vec<&ContentFile>>();
 
     for file in files {
         let html = aaska_lib::markdown::generate_html_single(
-            &std::fs::read_to_string(file).expect("Failed to read markdown file"),
+            &std::fs::read_to_string(&file.path).expect("Failed to read markdown file"),
         )
         .expect("Failed to generate HTML from markdown");
-        println!("HTML for {}:\n{}", file.display(), html);
+        println!("HTML for {}:\n{}", &file.path.display(), html);
     }
 }
 

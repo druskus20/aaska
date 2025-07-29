@@ -14,7 +14,8 @@
 //!     - Markdown: the simple way is to generate HTML directly. The complex way is to use the
 //!       syntax tree and generate custom components.
 
-pub mod internal_prelude {
+#[allow(unused_imports)]
+mod internal_prelude {
     pub use color_eyre::eyre::{WrapErr, eyre};
     pub use color_eyre::{Context, Result};
     pub use tracing::{debug, error, info, trace, warn};
