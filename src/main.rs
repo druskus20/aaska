@@ -35,6 +35,16 @@ fn validate_config(config: &Config) -> Result<()> {
 }
 
 fn generate_sample_source() -> Result<()> {
+    fn generate_frontmatter(date_str: &str) -> String {
+        format!(
+            r#"---
+title: "Sample Markdown"
+description: "This is a sample markdown file with frontmatter."
+date: {date_str}
+---"#
+        )
+    }
+
     let md = r#"
 # Hello, World!
 
@@ -68,7 +78,14 @@ This is a code block in Rust.
             std::fs::create_dir_all(parent)?;
         }
 
-        std::fs::write(&full_path, md)?;
+        let md_with_frontmatter = if file_path.ends_with(".md") {
+            let date_str = "2025-07-29T12:00:00Z"; // Example date
+            format!("{}\n\n{}", generate_frontmatter(date_str), md)
+        } else {
+            md.to_string()
+        };
+
+        std::fs::write(&full_path, md_with_frontmatter)?;
     }
 
     info!("Sample source files generated in: {}", root.display());
@@ -100,17 +117,20 @@ fn generate(args: cli::GenerateArgs) -> Result<()> {
         },
     };
 
+    validate_config(&config).expect("Configuration validation failed");
+
     let meta = SiteMetadata { author: "druskus" };
 
-    validate_config(&config).expect("Configuration validation failed");
-    info!("Configuration validated successfully");
+    let post_list = aaska::fs::list_files_dir_rec(&config.source_dir, &config.parsing_options)
+        .expect("Failed to list source directory");
 
-    let post_list =
-        aaska::fs::list_files_dir_rec(&config.source_dir).expect("Failed to list source directory");
+    dbg!(&post_list);
 
-    dbg!(post_list);
+    let index = index::index_html(meta, &post_list);
 
-    let index = index::index_html(meta);
+    dbg!(&index);
+
+    std::fs::write(config.output_dir.join("index.html"), index)?;
 
     Ok(())
 }

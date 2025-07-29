@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentFile {
     pub path: PathBuf,
-    pub date: Option<DateTime<Utc>>,
+    pub date: DateTime<Utc>,
     pub file_type: FileType,
     pub maybe_frontmatter: Option<FrontmatterData>,
 }
@@ -19,8 +19,8 @@ pub struct ContentFile {
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 pub struct FrontmatterData {
     pub title: Option<String>,
-    pub date: Option<String>,
-    pub tags: Vec<String>,
+    pub date: Option<DateTime<Utc>>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,27 +93,55 @@ pub fn list_files_dir(
 pub fn list_files_dir_rec(
     dir: &impl AsRef<Path>,
     parse_options: &ParseOptions,
-) -> Result<Vec<ContentFile>> {
+) -> Result<PageList> {
     utils::assert_dir_exists(dir);
 
     let mut dis = vec![dir.as_ref().to_path_buf()];
-    let mut res = Vec::new();
+    let mut files = Vec::new();
     while let Some(current_dir) = dis.pop() {
         for entry in current_dir.read_dir()? {
             let entry = entry?;
             let path = entry.path();
             if path.is_file() {
-                res.push(utils::get_file_data(&path, parse_options)?);
+                files.push(utils::get_file_data(&path, parse_options)?);
             } else if path.is_dir() {
                 dis.push(path.canonicalize()?);
             }
         }
     }
 
-    Ok(res)
+    Ok(PageList { files })
+}
+
+#[derive(Debug)]
+pub struct PageList {
+    pub files: Vec<ContentFile>,
+}
+
+impl PageList {
+    pub fn sorted_by_date(&self) -> Vec<&ContentFile> {
+        // sort by page.maybe_frontmatter.date
+        // or by file date
+
+        let mut sorted_files: Vec<&ContentFile> = self.files.iter().collect();
+        sorted_files.sort_by(|a, b| {
+            // First try to use the frontmatter date, if it exists
+            let date_a = a.maybe_frontmatter.as_ref().and_then(|fm| fm.date);
+            let date_b = b.maybe_frontmatter.as_ref().and_then(|fm| fm.date);
+
+            // default to the file's date if frontmatter date is not available
+            let date_a = date_a.unwrap_or(a.date);
+            let date_b = date_b.unwrap_or(b.date);
+
+            date_a.cmp(&date_b)
+        });
+
+        sorted_files
+    }
 }
 
 mod utils {
+
     use super::*;
 
     pub fn get_file_data(
@@ -126,7 +154,11 @@ mod utils {
         }
 
         let file_type = FileType::from(path.to_path_buf());
-        let date = path.metadata()?.modified().ok().map(|d| d.into());
+        let date: DateTime<Utc> = path
+            .metadata()?
+            .modified()
+            .wrap_err(format!("Failed to get modified date for file: {path:?}"))?
+            .into();
 
         let maybe_frontmatter = if file_type == FileType::Markdown {
             let content = std::fs::read_to_string(path)?;
@@ -199,10 +231,10 @@ Some body content here.
 
         let frontmatter = parsed.unwrap();
         assert_eq!(frontmatter.title, Some("Hello World".to_string()));
-        assert_eq!(frontmatter.date, Some("2025-07-29".to_string()));
+        assert_eq!(frontmatter.date, Some("2025-07-29".parse().unwrap()));
         assert_eq!(
             frontmatter.tags,
-            vec!["rust".to_string(), "markdown".to_string()]
+            Some(vec!["rust".to_string(), "markdown".to_string()])
         );
     }
 }
