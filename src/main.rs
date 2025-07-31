@@ -5,10 +5,7 @@ mod prelude {
     pub use color_eyre::eyre::{Result, WrapErr};
     pub use tracing::{debug, error, info, instrument, span, trace, warn};
 }
-use aaska::{
-    comrak::ComrakOptions,
-    md::{parse_markdown, PageList},
-};
+use aaska::{comrak::ComrakOptions, md::PageList};
 use prelude::*;
 
 mod cli;
@@ -82,7 +79,7 @@ This is a code block in Rust.
         }
 
         let md_with_frontmatter = if file_path.ends_with(".md") {
-            let date_str = "2025-07-29T12:00:00Z"; // Example date
+            let date_str = "2025-07-29"; // Example date
             format!("{}\n\n{}", generate_frontmatter(date_str), md)
         } else {
             md.to_string()
@@ -109,12 +106,15 @@ fn generate(args: cli::GenerateArgs) -> Result<()> {
     let post_list = aaska::fs::list_files_dir_rec(&config.source_dir, &config.parsing_options)
         .expect("Failed to list source directory");
 
+    let arnea = aaska::comrak::Arena::new();
+    let parser = aaska::md::MarkdownParser::with_arena(&arnea);
     // read each file and parse it
     let post_list = post_list
         .into_iter()
         .map(|f| {
             let content = std::fs::read_to_string(&f.path).expect("Failed to read file content");
-            let parsed = parse_markdown(&content, &config.parsing_options)
+            let parsed = parser
+                .parse_markdown(&content)
                 .expect("Failed to parse markdown content");
 
             aaska::md::ParsedFile {

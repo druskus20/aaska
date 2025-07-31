@@ -1,6 +1,6 @@
 use aaska::md::PageList;
 
-pub fn index_html(meta: crate::SiteMetadata, post_list: &PageList) -> String {
+pub fn index_html<'c>(meta: crate::SiteMetadata, post_list: &'c PageList<'c>) -> String {
     let page_links = post_list
         .sorted_by_date()
         .iter()

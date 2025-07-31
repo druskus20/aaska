@@ -1,16 +1,8 @@
 use chrono::{DateTime, Utc};
-use comrak::{
-    Arena, ComrakOptions,
-    nodes::{AstNode, NodeValue},
-    parse_document,
-};
-use serde::Deserialize;
+use comrak::ComrakOptions;
 
 use crate::internal_prelude::*;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileMeta {

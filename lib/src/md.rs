@@ -1,19 +1,11 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use comrak::{
-    Arena, ComrakOptions, ExtensionOptions,
-    arena_tree::Node,
-    nodes::{Ast, AstNode, NodeValue},
-    parse_document,
+    Arena, ComrakOptions, ExtensionOptions, arena_tree::Node, nodes::Ast, parse_document,
 };
 use serde::Deserialize;
 
 use crate::{fs::FileMeta, internal_prelude::*};
-use std::{
-    cell::{Ref, RefCell},
-    fs::File,
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct ParsedFile<'c> {
@@ -34,7 +26,7 @@ pub struct FileContents<'a> {
     pub body_ast: &'a Node<'a, RefCell<Ast>>,
 }
 
-struct MarkdownParser<'a, 'c> {
+pub struct MarkdownParser<'a, 'c> {
     arena: &'a Arena<Node<'a, RefCell<Ast>>>,
     options: ComrakOptions<'c>,
 }
