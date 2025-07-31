@@ -68,7 +68,6 @@ pub fn parse_markdown(content: &str, options: &ComrakOptions) -> Result<FileCont
     // Parse the body content (without frontmatter) using comrak
     let arena = Arena::new();
     let root = parse_document(&arena, &body_content, options);
-    dbg!(root);
 
     // For now, we'll store the body content as string since working with comrak AST
     // requires lifetime management that's complex for this structure
@@ -170,6 +169,10 @@ pub struct PageList {
 }
 
 impl PageList {
+    pub fn iter(&self) -> impl Iterator<Item = &ContentFile> {
+        self.files.iter()
+    }
+
     pub fn sorted_by_date(&self) -> Vec<&ContentFile> {
         let mut sorted_files: Vec<&ContentFile> = self.files.iter().collect();
         sorted_files.sort_by(|a, b| {

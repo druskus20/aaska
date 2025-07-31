@@ -5,7 +5,7 @@ mod prelude {
     pub use color_eyre::eyre::{Result, WrapErr};
     pub use tracing::{debug, error, info, instrument, span, trace, warn};
 }
-use aaska::md::{ComrakOptions, ParseOptions};
+use aaska::comrak::ComrakOptions;
 use prelude::*;
 
 mod cli;
@@ -107,6 +107,8 @@ fn generate(args: cli::GenerateArgs) -> Result<()> {
         .expect("Failed to list source directory");
 
     let index = index::index_html(meta, &post_list);
+
+    dbg!(post_list.iter().next());
 
     std::fs::write(config.output_dir.join("index.html"), index)?;
 

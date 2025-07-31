@@ -21,6 +21,10 @@ mod internal_prelude {
     pub use tracing::{debug, error, info, trace, warn};
 }
 
+pub mod comrak {
+    pub use comrak::*;
+}
+
 pub mod fs;
 pub mod html;
 pub mod md;
