@@ -5,7 +5,10 @@ mod prelude {
     pub use color_eyre::eyre::{Result, WrapErr};
     pub use tracing::{debug, error, info, instrument, span, trace, warn};
 }
-use aaska::comrak::ComrakOptions;
+use aaska::{
+    comrak::ComrakOptions,
+    md::{parse_markdown, PageList},
+};
 use prelude::*;
 
 mod cli;
@@ -103,8 +106,25 @@ fn generate(args: cli::GenerateArgs) -> Result<()> {
 
     let meta = SiteMetadata { author: "druskus" };
 
-    let post_list = aaska::fs::parse_files_dir_rec(&config.source_dir, &config.parsing_options)
+    let post_list = aaska::fs::list_files_dir_rec(&config.source_dir, &config.parsing_options)
         .expect("Failed to list source directory");
+
+    // read each file and parse it
+    let post_list = post_list
+        .into_iter()
+        .map(|f| {
+            let content = std::fs::read_to_string(&f.path).expect("Failed to read file content");
+            let parsed = parse_markdown(&content, &config.parsing_options)
+                .expect("Failed to parse markdown content");
+
+            aaska::md::ParsedFile {
+                meta: f,
+                contents: parsed,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let post_list = PageList { files: post_list };
 
     let index = index::index_html(meta, &post_list);
 

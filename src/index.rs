@@ -1,4 +1,4 @@
-use aaska::fs::PageList;
+use aaska::md::PageList;
 
 pub fn index_html(meta: crate::SiteMetadata, post_list: &PageList) -> String {
     let page_links = post_list
@@ -21,7 +21,7 @@ pub fn index_html(meta: crate::SiteMetadata, post_list: &PageList) -> String {
 
             format!(
                 "<li><a href=\"/posts/{}\">{}</a> - <em>{}</em></li>",
-                file.path.file_name().unwrap().to_str().unwrap(),
+                file.meta.path.file_name().unwrap().to_str().unwrap(),
                 title,
                 date
             )

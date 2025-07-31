@@ -1,4 +1,3 @@
-cargo-features = ["codegen-backend"]
 [package]
 name = "aaska"
 version = "0.1.0"
@@ -15,4 +14,3 @@ maud = { version = "0.27" }
 
 [profile.dev]
 debug = 0
-codegen-backend = "cranelift"
