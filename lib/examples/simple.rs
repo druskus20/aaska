@@ -4,8 +4,8 @@ use aaska_lib::fs::ContentFile;
 use color_eyre::eyre::Result;
 
 fn main() {
-    let parse_options = aaska_lib::markdown::ParseOptions {
-        constructs: aaska_lib::markdown::Constructs {
+    let parse_options = aaska_lib::html::ParseOptions {
+        constructs: aaska_lib::html::Constructs {
             frontmatter: true,
             ..Default::default()
         },
@@ -13,7 +13,7 @@ fn main() {
     };
     let root = create_tmp_files().expect("Failed to create temporary files");
     let files =
-        aaska_lib::fs::list_files_dir_rec(&root, &parse_options).expect("Failed to list files");
+        aaska_lib::fs::parse_files_dir_rec(&root, &parse_options).expect("Failed to list files");
 
     let files = files
         .iter()
@@ -21,7 +21,7 @@ fn main() {
         .collect::<Vec<&ContentFile>>();
 
     for file in files {
-        let html = aaska_lib::markdown::generate_html_single(
+        let html = aaska_lib::html::generate_html_single(
             &std::fs::read_to_string(&file.path).expect("Failed to read markdown file"),
         )
         .expect("Failed to generate HTML from markdown");

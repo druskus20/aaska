@@ -5,16 +5,16 @@ mod prelude {
     pub use color_eyre::eyre::{Result, WrapErr};
     pub use tracing::{debug, error, info, instrument, span, trace, warn};
 }
-use aaska::markdown::{self, Constructs, ParseOptions};
+use aaska::md::{ComrakOptions, ParseOptions};
 use prelude::*;
 
 mod cli;
 mod index;
 
-struct Config {
+struct Config<'c> {
     pub source_dir: PathBuf,
     pub output_dir: PathBuf,
-    pub parsing_options: ParseOptions,
+    pub parsing_options: ComrakOptions<'c>,
 }
 
 pub struct SiteMetadata {
@@ -92,6 +92,27 @@ This is a code block in Rust.
     Ok(())
 }
 
+fn generate(args: cli::GenerateArgs) -> Result<()> {
+    let config = Config {
+        source_dir: args.input.unwrap_or_else(|| PathBuf::from("/tmp/input")),
+        output_dir: args.output.unwrap_or_else(|| PathBuf::from("/tmp/output")),
+        parsing_options: ComrakOptions::default(),
+    };
+
+    validate_config(&config).expect("Configuration validation failed");
+
+    let meta = SiteMetadata { author: "druskus" };
+
+    let post_list = aaska::fs::parse_files_dir_rec(&config.source_dir, &config.parsing_options)
+        .expect("Failed to list source directory");
+
+    let index = index::index_html(meta, &post_list);
+
+    std::fs::write(config.output_dir.join("index.html"), index)?;
+
+    Ok(())
+}
+
 fn main() {
     color_eyre::install().expect("Failed to install color_eyre");
     let args = cli::ParsedArgs::parse_raw();
@@ -102,35 +123,4 @@ fn main() {
         cli::Command::Sample => generate_sample_source(),
     }
     .expect("Failed to execute command");
-}
-
-fn generate(args: cli::GenerateArgs) -> Result<()> {
-    let config = Config {
-        source_dir: args.input.unwrap_or_else(|| PathBuf::from("/tmp/input")),
-        output_dir: args.output.unwrap_or_else(|| PathBuf::from("/tmp/output")),
-        parsing_options: ParseOptions {
-            constructs: Constructs {
-                frontmatter: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-    };
-
-    validate_config(&config).expect("Configuration validation failed");
-
-    let meta = SiteMetadata { author: "druskus" };
-
-    let post_list = aaska::fs::list_files_dir_rec(&config.source_dir, &config.parsing_options)
-        .expect("Failed to list source directory");
-
-    dbg!(&post_list);
-
-    let index = index::index_html(meta, &post_list);
-
-    dbg!(&index);
-
-    std::fs::write(config.output_dir.join("index.html"), index)?;
-
-    Ok(())
 }

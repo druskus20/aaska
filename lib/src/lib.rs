@@ -22,4 +22,5 @@ mod internal_prelude {
 }
 
 pub mod fs;
-pub mod markdown;
+pub mod html;
+pub mod md;

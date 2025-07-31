@@ -6,13 +6,15 @@ pub fn index_html(meta: crate::SiteMetadata, post_list: &PageList) -> String {
         .iter()
         .map(|file| {
             let title = file
-                .maybe_frontmatter
+                .contents
+                .frontmatter
                 .as_ref()
                 .and_then(|fm| fm.title.clone())
                 .unwrap_or("untitled".to_string());
 
             let date = file
-                .maybe_frontmatter
+                .contents
+                .frontmatter
                 .as_ref()
                 .and_then(|fm| fm.date.map(|d| d.to_string()))
                 .unwrap_or("unknown date".to_string());
