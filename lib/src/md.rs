@@ -1,63 +1,82 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use comrak::{
-    Arena, ComrakOptions,
-    nodes::{AstNode, NodeValue},
+    Arena, ComrakOptions, ExtensionOptions,
+    arena_tree::Node,
+    nodes::{Ast, AstNode, NodeValue},
     parse_document,
 };
 use serde::Deserialize;
 
 use crate::{fs::FileMeta, internal_prelude::*};
 use std::{
+    cell::{Ref, RefCell},
     fs::File,
+    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone)]
-pub struct ParsedFile {
+pub struct ParsedFile<'c> {
     pub meta: FileMeta,
-    pub contents: FileContents,
+    pub contents: FileContents<'c>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 pub struct FrontmatterData {
     pub title: Option<String>,
-    pub date: Option<DateTime<Utc>>,
+    pub date: Option<NaiveDate>,
     pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct FileContents {
+pub struct FileContents<'a> {
     pub frontmatter: Option<FrontmatterData>,
-    pub body_ast: String, // Store the body content as string since comrak AST can't be easily cloned
+    pub body_ast: &'a Node<'a, RefCell<Ast>>,
 }
 
-pub fn parse_markdown(content: &str, options: &ComrakOptions) -> Result<FileContents> {
-    // First, try to extract frontmatter if it exists
-    let (frontmatter, body_content) = extract_frontmatter(content)?;
+struct MarkdownParser<'a, 'c> {
+    arena: &'a Arena<Node<'a, RefCell<Ast>>>,
+    options: ComrakOptions<'c>,
+}
 
-    // Parse the body content (without frontmatter) using comrak
-    let arena = Arena::new();
-    let root = parse_document(&arena, &body_content, options);
+impl<'a, 'c> MarkdownParser<'a, 'c> {
+    pub fn with_arena(arena: &'a Arena<Node<'a, RefCell<Ast>>>) -> Self {
+        let options = ComrakOptions {
+            extension: ExtensionOptions {
+                front_matter_delimiter: Some("---".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
-    // For now, we'll store the body content as string since working with comrak AST
-    // requires lifetime management that's complex for this structure
-    Ok(FileContents {
-        frontmatter,
-        body_ast: body_content,
-    })
+        MarkdownParser { arena, options }
+    }
+
+    pub fn parse_markdown(&self, content: &str) -> Result<FileContents<'a>> {
+        // First, try to extract frontmatter if it exists
+        let (frontmatter, body_content) = extract_frontmatter(content)?;
+
+        let root: &'a Node<'a, RefCell<Ast>> =
+            parse_document(self.arena, &body_content, &self.options);
+
+        Ok(FileContents {
+            frontmatter,
+            body_ast: root,
+        })
+    }
 }
 
 #[derive(Debug)]
-pub struct PageList {
-    pub files: Vec<ParsedFile>,
+pub struct PageList<'c> {
+    pub files: Vec<ParsedFile<'c>>,
 }
 
-impl PageList {
-    pub fn iter(&self) -> impl Iterator<Item = &ParsedFile> {
+impl<'c> PageList<'c> {
+    pub fn iter(&'c self) -> impl Iterator<Item = &'c ParsedFile<'c>> {
         self.files.iter()
     }
 
-    pub fn sorted_by_date(&self) -> Vec<&ParsedFile> {
+    pub fn sorted_by_date(&'c self) -> Vec<&'c ParsedFile<'c>> {
         let mut sorted_files: Vec<&ParsedFile> = self.files.iter().collect();
         sorted_files.sort_by(|a, b| {
             // First try to use the frontmatter date, if it exists
@@ -65,8 +84,19 @@ impl PageList {
             let date_b = b.contents.frontmatter.as_ref().and_then(|fm| fm.date);
 
             // default to the file's date if frontmatter date is not available
-            let date_a = date_a.unwrap_or(a.meta.date);
-            let date_b = date_b.unwrap_or(b.meta.date);
+            let date_a = date_a
+                .and_then(|d| {
+                    d.and_hms_opt(0, 0, 0)
+                        .map(|nd| DateTime::from_naive_utc_and_offset(nd, Utc))
+                })
+                .unwrap_or(a.meta.date);
+
+            let date_b = date_b
+                .and_then(|d| {
+                    d.and_hms_opt(0, 0, 0)
+                        .map(|nd| DateTime::from_naive_utc_and_offset(nd, Utc))
+                })
+                .unwrap_or(b.meta.date);
 
             date_a.cmp(&date_b)
         });
@@ -104,7 +134,9 @@ fn extract_frontmatter(content: &str) -> Result<(Option<FrontmatterData>, String
             let frontmatter_lines = &lines[1..end];
             let frontmatter_content = frontmatter_lines.join("\n");
 
+            dbg!(&frontmatter_content);
             // Parse frontmatter as YAML
+            dbg!(&frontmatter_content);
             let frontmatter: FrontmatterData = serde_yaml::from_str(&frontmatter_content)
                 .map_err(|e| eyre!("Failed to parse frontmatter as YAML: {}", e))?;
 
@@ -140,25 +172,21 @@ tags:
 Some body content here.
 "#;
 
-        let options = ComrakOptions::default();
-        let parsed = parse_markdown(markdown, &options).expect("Should parse without error");
+        let arena = Arena::new();
+        let parser = MarkdownParser::with_arena(&arena);
+        let parsed = parser
+            .parse_markdown(markdown)
+            .expect("Should parse without error");
 
         assert!(parsed.frontmatter.is_some());
 
         let frontmatter = parsed.frontmatter.unwrap();
         assert_eq!(frontmatter.title, Some("Hello World".to_string()));
-        assert_eq!(
-            frontmatter.date,
-            Some("2025-07-29T00:00:00Z".parse().unwrap())
-        );
+        assert_eq!(frontmatter.date, Some("2025-07-29".parse().unwrap()));
         assert_eq!(
             frontmatter.tags,
             Some(vec!["rust".to_string(), "markdown".to_string()])
         );
-
-        // Check that the body content doesn't include frontmatter
-        assert!(parsed.body_ast.contains("# Heading"));
-        assert!(!parsed.body_ast.contains("---"));
     }
 
     #[test]
@@ -168,10 +196,12 @@ Some body content here.
 Some body content here without frontmatter.
 "#;
 
-        let options = ComrakOptions::default();
-        let parsed = parse_markdown(markdown, &options).expect("Should parse without error");
+        let arena = Arena::new();
+        let parser = MarkdownParser::with_arena(&arena);
+        let parsed = parser
+            .parse_markdown(markdown)
+            .expect("Should parse without error");
 
         assert!(parsed.frontmatter.is_none());
-        assert!(parsed.body_ast.contains("# Just a heading"));
     }
 }
