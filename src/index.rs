@@ -36,7 +36,7 @@ pub fn index_html<'c>(meta: crate::SiteMetadata, post_list: &'c PageList<'c>) ->
                 link rel="stylesheet" href="/static/style.css" {}
             }
             body {
-                h1 { "Welcome to Aaska!" }
+                h1 { "Welcome" }
                 p { "This is the index page." }
                 p { "Author: " (meta.author) }
 

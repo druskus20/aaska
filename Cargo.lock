@@ -21,7 +21,6 @@ dependencies = [
  "chrono",
  "color-eyre",
  "comrak",
- "markdown",
  "maud",
  "serde",
  "serde_yaml",
@@ -686,15 +685,6 @@ dependencies = [
  "scoped-tls",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "markdown"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
-dependencies = [
- "unicode-id",
 ]
 
 [[package]]
@@ -1369,12 +1359,6 @@ name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
-
-[[package]]
-name = "unicode-id"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10103c57044730945224467c09f71a4db0071c123a0648cc3e818913bde6b561"
 
 [[package]]
 name = "unicode-ident"

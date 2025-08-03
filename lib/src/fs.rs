@@ -19,7 +19,7 @@ pub struct FileMeta {
 //    pub contents: FileContents,
 //}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum FileType {
     HTML,
     Markdown,
@@ -38,7 +38,7 @@ impl From<PathBuf> for FileType {
     }
 }
 
-pub fn list_files_dir(dir: &impl AsRef<Path>, options: &ComrakOptions) -> Result<Vec<FileMeta>> {
+pub fn list_files_dir(dir: &impl AsRef<Path>) -> Result<Vec<FileMeta>> {
     utils::assert_dir_exists(dir);
 
     let dir = dir.as_ref();
@@ -47,18 +47,21 @@ pub fn list_files_dir(dir: &impl AsRef<Path>, options: &ComrakOptions) -> Result
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
-            res.push(utils::get_file_meta(&path, options)?);
+            res.push(utils::get_file_meta(&path)?);
         }
     }
 
     Ok(res)
 }
 
+pub fn read_file(path: &impl AsRef<Path>) -> Result<String> {
+    utils::assert_file_exists(path);
+    let path = path.as_ref();
+    std::fs::read_to_string(path).wrap_err_with(|| format!("Failed to read file: {:?}", path))
+}
+
 // traverse a directory recursively and list all files
-pub fn list_files_dir_rec(
-    dir: &impl AsRef<Path>,
-    options: &ComrakOptions,
-) -> Result<Vec<FileMeta>> {
+pub fn list_files_dir_rec(dir: &impl AsRef<Path>) -> Result<Vec<FileMeta>> {
     utils::assert_dir_exists(dir);
 
     let mut dirs = vec![dir.as_ref().to_path_buf()];
@@ -68,7 +71,7 @@ pub fn list_files_dir_rec(
             let entry = entry?;
             let path = entry.path();
             if path.is_file() {
-                files.push(utils::get_file_meta(&path, options)?);
+                files.push(utils::get_file_meta(&path)?);
             } else if path.is_dir() {
                 dirs.push(path.canonicalize()?);
             }
@@ -81,7 +84,7 @@ pub fn list_files_dir_rec(
 mod utils {
     use super::*;
 
-    pub fn get_file_meta(path: &impl AsRef<Path>, options: &ComrakOptions) -> Result<FileMeta> {
+    pub fn get_file_meta(path: &impl AsRef<Path>) -> Result<FileMeta> {
         let path = path.as_ref();
         if !path.exists() {
             return Err(eyre!("Path does not exist: {:?}", path));
@@ -93,15 +96,16 @@ mod utils {
             .modified()
             .wrap_err(format!("Failed to get modified date for file: {path:?}"))?
             .into();
+        let path = path.to_path_buf().canonicalize()?;
 
         Ok(FileMeta {
-            path: path.to_path_buf().canonicalize()?,
             date,
             file_type,
+            path,
         })
     }
 
-    pub fn _assert_file_exists(path: &impl AsRef<Path>) {
+    pub fn assert_file_exists(path: &impl AsRef<Path>) {
         let path = path.as_ref();
         if !path.exists() {
             panic!("Path does not exist: {path:?}");

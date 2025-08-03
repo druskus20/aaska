@@ -1,20 +1,29 @@
-use crate::internal_prelude::*;
+use comrak::ComrakOptions;
 
-pub fn generate_html(input_mds: Vec<&str>) -> Result<Vec<String>> {
-    let mut res = Vec::with_capacity(input_mds.len());
-    for input_md in &input_mds {
-        res.push(generate_html_single(input_md)?);
-    }
-    Ok(res)
+use crate::{
+    fs::FileMeta,
+    md::{Html, ParsedFile},
+};
+
+pub struct GeneratedFileMeta {
+    pub title: String,
+    pub description: String,
 }
 
-pub fn generate_html_single(input_md: &str) -> Result<String> {
-    let html = match markdown::to_html_with_options(input_md, &markdown::Options::gfm()) {
-        Ok(html) => html,
-        Err(msg) => {
-            return Err(eyre!("Failed to convert markdown to HTML: {msg}"));
-        }
-    };
+pub struct GeneratedFile {
+    pub contents: Html,
+    pub path: String,
+    pub meta: GeneratedFileMeta,
+}
+pub fn generate_html(
+    file: &ParsedFile,
+    out: &mut Vec<u8>,
+    options: &ComrakOptions,
+) -> GeneratedFile {
+    comrak::format_html(file.contents.body_ast, options, out)
+        .expect("Failed to format HTML from Markdown");
 
-    Ok(html)
+    GeneratedFile {
+        contents: Html(String::from_utf8_lossy(out).to_string()),
+    }
 }

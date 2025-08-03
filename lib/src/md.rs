@@ -4,13 +4,58 @@ use comrak::{
 };
 use serde::Deserialize;
 
-use crate::{fs::FileMeta, internal_prelude::*};
-use std::cell::RefCell;
+use crate::{
+    fs::{FileMeta, FileType},
+    internal_prelude::*,
+};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedFileMeta {
+    pub path: PathBuf,
+    pub date: DateTime<Utc>,
+    pub file_type: FileType,
+}
+
+impl ParsedFileMeta {
+    pub fn file_name_no_stem(&self) -> &str {
+        self.path.file_name().and_then(|s| s.to_str()).unwrap_or("")
+    }
+
+    pub fn stem(&self) -> &str {
+        self.path.file_stem().and_then(|s| s.to_str()).unwrap_or("")
+    }
+
+    pub fn file_name(&self) -> &str {
+        self.path.file_name().and_then(|s| s.to_str()).unwrap_or("")
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ParsedFile<'c> {
-    pub meta: FileMeta,
+    pub meta: ParsedFileMeta,
     pub contents: FileContents<'c>,
+}
+
+impl<'a> ParsedFile<'a> {
+    fn new(meta: &'a FileMeta, contents: FileContents<'a>) -> ParsedFile<'a> {
+        ParsedFile {
+            meta: ParsedFileMeta {
+                path: meta.path.clone(),
+                date: meta.date,
+                file_type: meta.file_type,
+            },
+            contents,
+        }
+    }
+
+    fn to_html(&self, options: &ComrakOptions) -> Result<Html> {
+        crate::html::generate_html(&self, &mut vec![], options)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -28,19 +73,14 @@ pub struct FileContents<'a> {
 
 pub struct MarkdownParser<'a, 'c> {
     arena: &'a Arena<Node<'a, RefCell<Ast>>>,
-    options: ComrakOptions<'c>,
+    options: &'c ComrakOptions<'c>,
 }
 
 impl<'a, 'c> MarkdownParser<'a, 'c> {
-    pub fn with_arena(arena: &'a Arena<Node<'a, RefCell<Ast>>>) -> Self {
-        let options = ComrakOptions {
-            extension: ExtensionOptions {
-                front_matter_delimiter: Some("---".to_string()),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
+    pub fn with_arena(
+        arena: &'a Arena<Node<'a, RefCell<Ast>>>,
+        options: &'c ComrakOptions,
+    ) -> Self {
         MarkdownParser { arena, options }
     }
 
@@ -55,6 +95,18 @@ impl<'a, 'c> MarkdownParser<'a, 'c> {
             frontmatter,
             body_ast: root,
         })
+    }
+
+    pub fn parse_many(&self, files: &'a Vec<FileMeta>) -> Result<Vec<ParsedFile<'a>>> {
+        let mut acc = vec![];
+        for f in files {
+            let content = crate::fs::read_file(&f.path)?;
+            let parsed_content = self.parse_markdown(&content)?;
+
+            acc.push(ParsedFile::new(f, parsed_content));
+        }
+
+        Ok(acc)
     }
 }
 
@@ -97,6 +149,22 @@ impl<'c> PageList<'c> {
     }
 }
 
+pub struct Html(pub String);
+
+impl Deref for Html {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Html {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 fn extract_frontmatter(content: &str) -> Result<(Option<FrontmatterData>, String)> {
     let content = content.trim();
 
@@ -126,9 +194,6 @@ fn extract_frontmatter(content: &str) -> Result<(Option<FrontmatterData>, String
             let frontmatter_lines = &lines[1..end];
             let frontmatter_content = frontmatter_lines.join("\n");
 
-            dbg!(&frontmatter_content);
-            // Parse frontmatter as YAML
-            dbg!(&frontmatter_content);
             let frontmatter: FrontmatterData = serde_yaml::from_str(&frontmatter_content)
                 .map_err(|e| eyre!("Failed to parse frontmatter as YAML: {}", e))?;
 
@@ -147,7 +212,19 @@ fn extract_frontmatter(content: &str) -> Result<(Option<FrontmatterData>, String
 
 #[cfg(test)]
 mod test {
+    use std::cell::LazyCell;
+
     use super::*;
+
+    fn default_opts() -> ComrakOptions {
+        ComrakOptions {
+            extension: ExtensionOptions {
+                front_matter_delimiter: Some("---".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn test_parse_frontmatter() {
@@ -165,7 +242,7 @@ Some body content here.
 "#;
 
         let arena = Arena::new();
-        let parser = MarkdownParser::with_arena(&arena);
+        let parser = MarkdownParser::with_arena(&arena, default_opts());
         let parsed = parser
             .parse_markdown(markdown)
             .expect("Should parse without error");
@@ -189,7 +266,7 @@ Some body content here without frontmatter.
 "#;
 
         let arena = Arena::new();
-        let parser = MarkdownParser::with_arena(&arena);
+        let parser = MarkdownParser::with_arena(&arena, default_opts());
         let parsed = parser
             .parse_markdown(markdown)
             .expect("Should parse without error");

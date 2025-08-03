@@ -13,6 +13,16 @@
 //!     - Components: how to do slots.
 //!     - Markdown: the simple way is to generate HTML directly. The complex way is to use the
 //!       syntax tree and generate custom components.
+//!       
+//!       
+//! Phases:
+//!     1 - fs_list: scan source files into file metadata -> metadata of the file
+//!     2 - md: read files, parse into md -> generate metadata based on the frontmatter
+//!     3 - html: generate HTML -> metadata at this stage contains relative paths to the files
+//!
+
+use comrak::ComrakOptions;
+use std::path::PathBuf;
 
 #[allow(unused_imports)]
 mod internal_prelude {
