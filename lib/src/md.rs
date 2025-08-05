@@ -6,6 +6,7 @@ use serde::Deserialize;
 
 use crate::{
     fs::{FileMeta, FileType},
+    html::GeneratedFile,
     internal_prelude::*,
 };
 use std::{
@@ -53,8 +54,8 @@ impl<'a> ParsedFile<'a> {
         }
     }
 
-    fn to_html(&self, options: &ComrakOptions) -> Result<Html> {
-        crate::html::generate_html(&self, &mut vec![], options)
+    fn to_html(&self, options: &ComrakOptions) -> Result<GeneratedFile> {
+        Ok(crate::html::generate_html(&self, options))
     }
 }
 
@@ -115,6 +116,12 @@ pub struct PageList<'c> {
     pub files: Vec<ParsedFile<'c>>,
 }
 
+impl<'a> From<Vec<ParsedFile<'a>>> for PageList<'a> {
+    fn from(files: Vec<ParsedFile<'a>>) -> Self {
+        PageList { files }
+    }
+}
+
 impl<'c> PageList<'c> {
     pub fn iter(&'c self) -> impl Iterator<Item = &'c ParsedFile<'c>> {
         self.files.iter()
@@ -149,6 +156,7 @@ impl<'c> PageList<'c> {
     }
 }
 
+#[derive(Debug)]
 pub struct Html(pub String);
 
 impl Deref for Html {
@@ -216,7 +224,7 @@ mod test {
 
     use super::*;
 
-    fn default_opts() -> ComrakOptions {
+    fn default_opts<'c>() -> ComrakOptions<'c> {
         ComrakOptions {
             extension: ExtensionOptions {
                 front_matter_delimiter: Some("---".to_string()),
@@ -242,7 +250,8 @@ Some body content here.
 "#;
 
         let arena = Arena::new();
-        let parser = MarkdownParser::with_arena(&arena, default_opts());
+        let opts = default_opts();
+        let parser = MarkdownParser::with_arena(&arena, &opts);
         let parsed = parser
             .parse_markdown(markdown)
             .expect("Should parse without error");
@@ -266,7 +275,8 @@ Some body content here without frontmatter.
 "#;
 
         let arena = Arena::new();
-        let parser = MarkdownParser::with_arena(&arena, default_opts());
+        let opts = default_opts();
+        let parser = MarkdownParser::with_arena(&arena, &opts);
         let parsed = parser
             .parse_markdown(markdown)
             .expect("Should parse without error");

@@ -33,17 +33,17 @@ pub fn generate(args: crate::cli::GenerateArgs) -> Result<()> {
             .output_dir
             .join(format!("{}.html", file.meta.file_name_no_stem()));
 
-        let mut html = vec![];
-        let generated_file = aaska::html::generate_html(file, &mut html, &config.comrak_options);
+        let generated_file = aaska::html::generate_html(file, &config.comrak_options);
 
-        std::fs::write(dest_path, html).wrap_err_with(|| {
+        std::fs::write(dest_path, generated_file.contents.0).wrap_err_with(|| {
             format!(
                 "Failed to write HTML for file: {}",
                 file.meta.path.display()
             )
         })?;
     }
-    let index = crate::index::index_html(meta, &parsed);
+
+    let index = crate::index::index_html(meta, &parsed.into());
     std::fs::write(config.output_dir.join("index.html"), index)?;
 
     info!(
